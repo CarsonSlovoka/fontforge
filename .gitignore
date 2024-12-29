@@ -18,3 +18,27 @@ tags
 __pycache__
 *.py[co]
 
+
+
+*.mo
+*.o
+cmake-build-debug/
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+
+lib/
+inc/
+share/
+
+.ninja_deps
+.ninja_log
+CMakeCache.txt
+*.cmake
+*.tcl
+bin/
+build/
+build.ninja
+*.xml
+fontforgeexe/
+install_manifest.txt

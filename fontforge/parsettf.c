@@ -1564,63 +1564,80 @@ static void TTFAddLangStr(FILE *ttf, struct ttfinfo *info, int id,
     char *str;
 
     if ( plat==1 && id>=256 && (info->features!=NULL || info->fvar_start!=0)) {
-	MacFeatureAdd(ttf,info,id,strlength,stroff,spec,language);
-return;
+			MacFeatureAdd(ttf,info,id,strlength,stroff,spec,language);
+			return;
     } else if ( id<0 || id>=ttf_namemax )
-return;
+			return;
+	  str = _readencstring(ttf,stroff,strlength,plat,spec,language);
 
-    str = _readencstring(ttf,stroff,strlength,plat,spec,language);
     if ( str==NULL )		/* we didn't understand the encoding */
-return;
+				return;
     if ( id==ttf_postscriptname )
-	ValidatePostScriptFontName(info,str);
+				ValidatePostScriptFontName(info,str);
     if ( *str=='\0' ) {
-	free(str);
-return;
+			free(str);
+			return;
     }
 
     if ( plat==1 || plat==0 )
-	language = WinLangFromMac(language);
+				language = WinLangFromMac(language);
     if ( (language&0xff00)==0 ) language |= 0x400;
 
     for ( prev=NULL, cur=info->names; cur!=NULL && cur->lang!=language; prev = cur, cur=cur->next );
     if ( cur==NULL ) {
-	cur = chunkalloc(sizeof(struct ttflangname));
-	cur->lang = language;
-	if ( prev==NULL )
-	    info->names = cur;
-	else
-	    prev->next = cur;
+		cur = chunkalloc(sizeof(struct ttflangname));
+		cur->lang = language;
+		if ( prev==NULL )
+		    info->names = cur;
+		else
+		    prev->next = cur;
     }
     if ( cur->names[id]==NULL ) {
 	cur->names[id] = str;
 	if ( plat==1 || plat==0 )
 	    cur->frommac[id/32] |= (1<<(id&0x1f));
     } else if ( strcmp(str,cur->names[id])==0 ) {
-	free(str);
+		free(str);
 	if ( plat==3 )
 	    cur->frommac[id/32] &= ~(1<<(id&0x1f));
     } else if ( plat==1 ) {
-	/* Mac string doesn't match mac unicode string */
-	if ( !IsSubSetOf(str,cur->names[id]) )
-	    LogError( _("Warning: Mac and Unicode entries in the 'name' table differ for the\n %s string in the language %s\n Mac String: %s\nMac Unicode String: %s\n"),
-		    TTFNameIds(id),MSLangString(language),
-		    str,cur->names[id]);
-	else
-	    LogError( _("Warning: Mac string is a subset of the Unicode string in the 'name' table\n for the %s string in the %s language.\n"),
-		    TTFNameIds(id),MSLangString(language));
-	free(str);
-    } else if ( plat==3 && (cur->frommac[id/32] & (1<<(id&0x1f))) ) {
-	if ( !IsSubSetOf(cur->names[id],str) )
-	    LogError( _("Warning: Mac and Windows entries in the 'name' table differ for the\n %s string in the language %s\n Mac String: %s\nWindows String: %s\n"),
-		    TTFNameIds(id),MSLangString(language),
-		    cur->names[id],str);
-	else
-	    LogError( _("Warning: Mac string is a subset of the Windows string in the 'name' table\n for the %s string in the %s language.\n"),
-		    TTFNameIds(id),MSLangString(language));
-	free(cur->names[id]);
-	cur->names[id] = str;
-	cur->frommac[id/32] &= ~(1<<(id&0x1f));
+		/* Mac string doesn't match mac unicode string */
+		if ( !IsSubSetOf(str,cur->names[id]) )
+		    LogError( _("Warning: Mac and Unicode entries in the 'name' table differ for the\n %s string in the language %s\n Mac String: %s\nMac Unicode String: %s\n"),
+			    TTFNameIds(id),MSLangString(language),
+			    str,cur->names[id]);
+		else
+		    LogError( _("Warning: Mac string is a subset of the Unicode string in the 'name' table\n for the %s string in the %s language.\n"),
+			    TTFNameIds(id),MSLangString(language));
+			free(str);
+    } else if ( plat==3 && (cur->frommac[id/32] & (1<<(id&0x1f))) ) { // cur->frommac是一個int非char
+		if ( !IsSubSetOf(cur->names[id],str) )
+		    LogError( _("Warning:(%d.%d.%d) encoding str:%s\n"
+						 " Mac and Windows entries in the 'name' table differ for the\n"
+	                     " %s string in the language %s\n"
+	                     " Mac String: %s\n"
+                         " Windows String: %s\n"),
+	            plat, spec, id, str, // plat, encoding, nameID, nameStr
+			    TTFNameIds(id), MSLangString(language), // nameIDstring, languageString
+			    cur->names[id], str  // win, mac
+            );
+		else
+
+		    LogError( _(
+	                       "Warning: (%d.%d.%d) encoding str:%s\n"
+	                              " Mac string is a subset of the Windows string in the 'name' table\n"
+	                              " for the %s string in the %s language.\n"
+	                              " Mac String: %s\n"
+                                  " Windows String: %s\n"
+	                     ),
+	            plat, spec, id, str, // plat, encoding, nameID, nameStr
+			    TTFNameIds(id), // nameIDstring: Family
+	            MSLangString(language), // language的可讀版本, ex: English (US)
+	            cur->names[id], str // win, mac
+	        );
+		free(cur->names[id]);
+		cur->names[id] = str;
+		cur->frommac[id/32] &= ~(1<<(id&0x1f));
     } else {
 	int ret;
 	if ( info->dupnamestate!=0 )
